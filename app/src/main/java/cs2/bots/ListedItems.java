@@ -20,8 +20,16 @@ public class ListedItems {
         return name;
     }
 
+    public void setPrice(String newPrice) {
+        this.price = newPrice;
+    }
+
     public double getPrice(){
         return Double.parseDouble(price);
+    }
+
+    public String getPriceAsString(){
+        return price;
     }
 
     public int getPriceAsInt() {

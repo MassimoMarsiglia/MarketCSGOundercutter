@@ -9,6 +9,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.List;
 import java.util.Map;
+import java.util.ArrayList;
 import java.util.HashMap;
 
 import com.google.gson.Gson;
@@ -20,12 +21,21 @@ public class Requester {
 
         requestURL = "search-list-items-by-hash-name-all?key=" + authToken + getListingsHashNameEncoded(forSale);
 
-        String responseBody = getRequest(requestURL);
+        RequesterResponse response = getRequest(requestURL);
 
-        Gson gson = new Gson();
-        Listing listing = gson.fromJson(responseBody, Listing.class);
-        Map<String,List<ListedItems>> listedItems = listing.getListedItems();
+        Map<String,List<ListedItems>> listedItems = new HashMap<>();
 
+        if(response.getStatusCode() == 200) {
+            String responseBody = response.getResponseBody();
+
+            Gson gson = new Gson();
+            Listing listing = gson.fromJson(responseBody, Listing.class);
+            listedItems = listing.getListedItems();
+        }
+
+        else if(response.getStatusCode() != 200) {
+            System.out.println(response.getStatusCode());
+        }
         return listedItems;
     }
 
@@ -50,6 +60,11 @@ public class Requester {
                             lowestPrice = saleListing;
                             System.out.println(lowestPrice);
                         }
+                        else if(lowestPrice == null){
+                            ListedItems tmp = new ListedItems();
+                            tmp.setPrice(String.valueOf(onSale.getMaxPriceAsInt()/fee));
+                            lowestPrice = tmp; // need to find a solution to fix bug when there are no listings it returns the previous items
+                        }
                     }
                     lowestPrices.put(hashname, lowestPrice);
                 }
@@ -72,11 +87,21 @@ public class Requester {
 
         requestURL = "my-inventory?key=" + authToken;
 
-        String responseBody = getRequest(requestURL);
+        List<MyItem> listedItems = new ArrayList<>();
 
-        Gson gson = new Gson();
-        MyListings listing = gson.fromJson(responseBody, MyListings.class);
-        List<MyItem> listedItems = listing.getMyListings();
+        RequesterResponse response = getRequest(requestURL);
+
+        if(response.getStatusCode() == 200) {
+
+            String responseBody = response.getResponseBody();
+
+            Gson gson = new Gson();
+            MyListings listing = gson.fromJson(responseBody, MyListings.class);
+            listedItems = listing.getMyListings();
+        }
+        else if(response.getStatusCode() != 200) {
+            System.out.println(response.getStatusCode());
+        }
 
         return listedItems;
     }
@@ -84,16 +109,24 @@ public class Requester {
     public static List<ListedItems> getMyListings(String authToken) {
         String requestURL = "items?key=" + authToken;
 
-        String responseBody = getRequest(requestURL);
+        List<ListedItems> myListings = new ArrayList<>();;
 
-        Gson gson = new Gson();
-        MyItemsResponse myListing = gson.fromJson(responseBody, MyItemsResponse.class);
-        List<ListedItems> myListings = myListing.getMyItems();
+        RequesterResponse response = getRequest(requestURL);
 
+        if(response.getStatusCode() == 200) {
+            String responseBody = response.getResponseBody();
+
+            Gson gson = new Gson();
+            MyItemsResponse myListing = gson.fromJson(responseBody, MyItemsResponse.class);
+            myListings = myListing.getMyItems();
+        }
+        else if(response.getStatusCode() != 200) {
+            System.out.println(response.getStatusCode());
+        }
         return myListings;
     }
 
-    public static String getRequest(String requestURL){
+    public static RequesterResponse getRequest(String requestURL){
         // Create an instance of HttpClient
         HttpClient httpClient = HttpClient.newHttpClient();
 
@@ -122,7 +155,9 @@ public class Requester {
             HttpHeaders headers = response.headers();
             //System.out.println("Response Headers: " + headers);
 
-            return responseBody;
+            RequesterResponse requesterResponse = new RequesterResponse(responseBody, statusCode);
+
+            return requesterResponse;
 
         } catch (IOException | InterruptedException e) {
             e.printStackTrace();
